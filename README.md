@@ -35,11 +35,3 @@ In either case, the suggested Python version is 3.10
 
 The autoencoder.ipynb file contains code for visualizing in open3d as well as matplotlib.  
 The matplotlib visualization will work on all systems while the open3d visualization is geared towards a higher quality, interactive visualization.  
-
-## Instructions
-
-### Training
-1. Once you clone the repository, create folders in the main directory called "abc-dataset-stl" and "abc-dataset-ply"
-2. Download a chunk ABC dataset in STL format.
-3. Move 1000 STL files to the abc-dataset-stl directory
-4. The Model.ipynb can then be run. Additional information can be found in the notebooks.
