@@ -15,6 +15,7 @@ plt.style.use('dark_background')
 autoencoder = load_model("saved-models/autoencoder.keras")
 encoder = load_model("saved-models/encoder.keras")
 
+
 def visualize_latent_space(latent_representation, threshold=0.35):
     latent_shape = latent_representation.shape[1:5]
     fig = plt.figure(figsize=(10, 10))
@@ -35,10 +36,12 @@ def visualize_latent_space(latent_representation, threshold=0.35):
 
     st.pyplot(fig)
 
+
 def stl_to_point_cloud(file_path, num_points=20000):
     mesh = o3d.io.read_triangle_mesh(file_path)
     point_cloud = mesh.sample_points_uniformly(number_of_points=num_points)
     return point_cloud
+
 
 def convert_to_binvox(point_cloud, dim=64):
     points = np.asarray(point_cloud.points)
@@ -49,12 +52,14 @@ def convert_to_binvox(point_cloud, dim=64):
     binvox_array = voxelgrid.get_feature_vector(mode="binary")
     return binvox_array
 
+
 def visualize_point_cloud(point_cloud):
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     vis.add_geometry(point_cloud)
     vis.run()
     vis.destroy_window()
+
 
 def visualize_voxel(voxel_data):
     verts, faces, _, _ = measure.marching_cubes(voxel_data, level=0.5)
@@ -67,6 +72,11 @@ def visualize_voxel(voxel_data):
     ax.set_zlabel('Z')
     ax.set_box_aspect([1, 1, 1])
     st.pyplot(fig)
+
+
+def save_point_cloud_as_ply(point_cloud, file_path):
+    o3d.io.write_point_cloud(file_path, point_cloud)
+
 
 st.title("3D Model Autoencoder Visualization")
 
@@ -104,3 +114,16 @@ if stl_file:
 
     st.write("Visualizing latent space with 16 channels...")
     visualize_latent_space(latent_representation)
+
+    if st.button("Save Point Cloud as .ply"):
+        ply_file_path = "saved_point_cloud.ply"
+        save_point_cloud_as_ply(point_cloud, ply_file_path)
+        st.write(f"Point cloud saved as: {ply_file_path}")
+
+        with open(ply_file_path, "rb") as file:
+            btn = st.download_button(
+                label="Download Point Cloud",
+                data=file,
+                file_name=ply_file_path,
+                mime="application/octet-stream"
+            )
