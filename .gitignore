@@ -2,9 +2,5 @@ abc-dataset-stl/
 abc-dataset-stl/*
 abc-dataset-ply/
 abc-dataset-ply/*
-checkpoints/
-checkpoints/*
-saved-models/
-saved-models/*
 
 __pycache__/
