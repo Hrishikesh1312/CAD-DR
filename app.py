@@ -87,6 +87,27 @@ def visualize_latent_space_plotly(latent_representation, threshold=0.35):
 
     st.plotly_chart(fig)
 
+def visualize_triangulated_reconstruction(reconstructed_sample):
+    verts, faces, _, _ = measure.marching_cubes(reconstructed_sample, level=0.5)
+
+    fig = go.Figure(data=[go.Mesh3d(
+        x=verts[:, 0],
+        y=verts[:, 1],
+        z=verts[:, 2],
+        i=faces[:, 0],
+        j=faces[:, 1],
+        k=faces[:, 2],
+        color='lightblue',
+        opacity=0.6
+    )])
+
+    fig.update_layout(scene=dict(xaxis=dict(visible=False),
+                                 yaxis=dict(visible=False),
+                                 zaxis=dict(visible=False)),
+                      margin=dict(l=0, r=0, b=0, t=0))
+
+    st.plotly_chart(fig)
+
 st.title("CAD-DR")
 st.subheader(
     "Deep convolutional autoencoder for dimensionality reduction of 3D CAD models.")
@@ -97,7 +118,8 @@ encoder_done = False
 latent_representation = None
 
 if stl_file:
-    st.write("Triangulated STL Model Visualization")
+    st.subheader("Original 3D CAD Model")
+    st.write("Triangulated STL Model visualization")
 
     temp_file_path = "uploaded_model.stl"
     with open(temp_file_path, "wb") as f:
@@ -121,17 +143,18 @@ if stl_file:
                 for i in range(1, 101):
                     if i % 20 == 0:
                         progress_bar.progress(i / 100)
-                    reconstructed_data = autoencoder.predict(
-                        binvox_array_reshaped)
+                    reconstructed_data = autoencoder.predict(binvox_array_reshaped)
                 progress_bar.empty()
                 autoencoder_done = True
-
+            st.subheader("Reconstructed 3D CAD Model")
             st.write("Voxelized Reconstructed Model Visualization")
             reconstructed_sample = reconstructed_data[0].reshape(64, 64, 64)
             threshold = 0.35
-            reconstructed_sample = (
-                reconstructed_sample > threshold).astype(int)
+            reconstructed_sample = (reconstructed_sample > threshold).astype(int)
             visualize_voxel_plotly(reconstructed_sample)
+
+            st.write("Triangulated Reconstructed Model Visualization")
+            visualize_triangulated_reconstruction(reconstructed_sample)
 
         if not encoder_done:
             with st.spinner('Running encoder...'):
@@ -144,8 +167,8 @@ if stl_file:
                         binvox_array_reshaped)
                 progress_bar.empty()
                 encoder_done = True
-
-        st.write("Latent Space Visualization")
+        st.subheader("Latent Space")
+        st.write("Visualization - 16 channels of 16x16x16 data")
         visualize_latent_space_plotly(latent_representation)
 
         latent_space_file_path = 'latent_space.npy'
