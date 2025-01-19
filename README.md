@@ -19,7 +19,7 @@ With changes to the original architecture's parameters, a better accuracy and lo
 ## Requirements
 The model was created using TensorFlow 2.14. Usage of GPU is suggested, and the TensorFlow installation for the same can be done using pip: 
 ```bash
-pip install tensorflow\[and-cuda\]
+pip install tensorflow[and-cuda]
 ```  
 For training the model on a native Windows environment (i.e., without the use of WSL2), the TensorFlow installation can be done as follows:
 ```bash
