@@ -1,4 +1,5 @@
-# CAD-DR: Deep Convolutional Autoencoder for Dimensionality Reduction of 3D CAD Models
+# CAD-DR
+**Deep Convolutional Autoencoder for Dimensionality Reduction of 3D CAD Models**
 
 CAD-DR is a deep learning-based system for dimensionality reduction of 3D CAD models using a 3D convolutional autoencoder. The system supports full STL to voxel transformation, encoding, reconstruction, and interactive visualization using a Streamlit-based GUI.
 
