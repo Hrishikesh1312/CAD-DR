@@ -1,6 +1,3 @@
-abc-dataset-stl/
-abc-dataset-stl/*
-abc-dataset-ply/
-abc-dataset-ply/*
-
+data/abc-dataset-stl
+data/abc-dataset-ply
 __pycache__/
