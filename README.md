@@ -67,27 +67,6 @@ The code had been initially developed using TensorFlow 2.14, but has been update
 
 ---
 
-## Project Structure
-
-CAD-DR/
-├── app.py
-├── train.py
-├── model/
-│ ├── autoencoder.py
-├── utils/
-│ ├── conversion_utils.py
-│ ├── visualization.py
-├── data/
-│ ├── abc-dataset-stl/
-│ ├── abc-dataset-ply/
-│ ├── saved-models/
-│ └── checkpoints/
-├── config.py
-├── requirements.txt
-└── README.md
-
----
-
 ## Installation
 
 ### 1. Clone the repository
