@@ -2,9 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import open3d as o3d
-from skimage import measure
 import streamlit as st
-from mpl_toolkits.mplot3d import Axes3D
 
 class Visualization:
 

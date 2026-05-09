@@ -5,9 +5,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 from config import *
-from model.autoencoder import Autoencoder
+from model.convolutional_autoencoder import ConvolutionalAutoencoder
 from utils.conversion_utils import ConversionUtils
-from utils.visualization import Visualization
 
 os.makedirs(DATASET_DIR_STL, exist_ok=True)
 os.makedirs(DATASET_DIR_PLY, exist_ok=True)
@@ -65,7 +64,7 @@ test_loader = DataLoader(
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = Autoencoder().to(device)
+model = ConvolutionalAutoencoder().to(device)
 optimizer = torch.optim.Adam(model.parameters())
 criterion = nn.BCELoss()
 

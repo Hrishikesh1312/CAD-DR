@@ -5,9 +5,8 @@ import streamlit as st
 import numpy as np
 import torch
 import open3d as o3d
-import plotly.graph_objects as go
 from config import POINT_CLOUD_DENSITY, VOXEL_DIM
-from model.autoencoder import Autoencoder
+from model.convolutional_autoencoder import ConvolutionalAutoencoder
 from utils.conversion_utils import ConversionUtils
 from utils.visualization import Visualization
 
@@ -115,7 +114,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @st.cache_resource
 def load_model():
-    model = Autoencoder().to(device)
+    model = ConvolutionalAutoencoder().to(device)
     model.load_state_dict(
         torch.load(
             "data/saved-models/autoencoder.pt",
