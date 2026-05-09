@@ -5,16 +5,16 @@ CAD-DR is a deep learning-based system for dimensionality reduction of 3D CAD mo
 
 ---
 
+## Table of Contents
+
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Dataset](#dataset)
 - [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Running the GUI](#running-the-gui)
-  - [Training the Autoencoder](#training-the-autoencoder)
-- [Metrics](#metrics)
-- [Visualizations](#visualizations)
+- [Technical Details](#technical-details)
+- [Performance](#performance)
 - [Future Work](#future-work)
 - [License](#license)
 
@@ -24,46 +24,84 @@ CAD-DR is a deep learning-based system for dimensionality reduction of 3D CAD mo
 
 The goal of CAD-DR is to compress 3D models into low-dimensional latent representations while preserving key geometric features. This allows for efficient storage, retrieval, and downstream tasks like shape classification and reconstruction.
 
-Key features:
+**Key Features:**
 - 3D STL → Point Cloud → Voxel conversion pipeline
-- Fully convolutional encoder-decoder architecture
+- Fully convolutional encoder-decoder architecture with SELU activations
 - Streamlit GUI with real-time visualization (STL, voxel, latent space)
 - Latent space export and reconstruction preview
+- PyTorch-based implementation with GPU acceleration support
+- Pre-trained models included for immediate use
 
-The developed pipeline can reduce an STL of 25MB size to less than 300kB - a staggering 98% reduction in storage size, without having to compromise on details.
-
-The hardware used for development is a system having AMD Ryzen 7 4800H with 8 cores, 16GB RAM and Nvidia GTX1660Ti GPU with 6GB VRAM. Training took approximately 20 minutes.
-The pipeline has been developed and tested on Ubuntu 22.04 and Fedora 42. It should run without any hassles on any Linux system. For Windows, slight modifications may have to be carried out in parts of the code.
-The code had been initially developed using TensorFlow 2.14, but has been updated to work on newer versions, with the latest supported version being 2.19
+**Compression Performance:**
+The developed pipeline can reduce an STL of 25MB size to less than 300kB - a staggering 98% reduction in storage size while preserving geometric details.
 
 ---
 
 ## Architecture
 
-### Autoencoder
+### Autoencoder (PyTorch Implementation)
 
-- **Input**: Binary voxel grids (64×64×64×1)
-- **Encoder**:
-  - Conv3D(32) → AvgPool3D
-  - Conv3D(16) → AvgPool3D
-- **Latent space**: 16×16×16×16
-- **Decoder**:
-  - Conv3D(16) → UpSample3D
-  - Conv3D(32) → UpSample3D
-  - Conv3D(1, sigmoid)
+**Input Format:** Binary voxel grids (1×64×64×64)
+
+**Encoder:**
+- Conv3D(1→32, kernel_size=3, padding=1) → SELU → AvgPool3D(2)
+- Conv3D(32→16, kernel_size=3, padding=1) → SELU → AvgPool3D(2)
+- **Bottleneck (Latent Space):** 16×16×16×16
+
+**Decoder:**
+- Conv3D(16→16, kernel_size=3, padding=1) → SELU → Upsample(2, mode='nearest')
+- Conv3D(16→32, kernel_size=3, padding=1) → SELU → Upsample(2, mode='nearest')
+- Conv3D(32→1, kernel_size=3, padding=1) → Sigmoid
+
+### Training Configuration
+
+- **Framework:** PyTorch (Torch 2.x compatible)
+- **Optimizer:** Adam
+- **Loss Function:** Binary Cross-Entropy (BCELoss)
+- **Metrics:** Binary Accuracy
+- **Batch Size:** 10
+- **Epochs:** 50 (with early stopping)
+- **Early Stopping:** Patience=5, Min Delta=0.0001
+- **Device:** Automatic GPU acceleration if CUDA is available
 
 ---
 
 ## Dataset
 
-- **Source**: ABC Dataset (STL format)
-- **Preprocessing**:
-  - 1000 STL files
-  - 20,000 points per point cloud
-  - Binary voxelization (64³ resolution)
-- **Split**:
-  - Training: 800 models
-  - Testing: 200 models
+- **Source:** ABC Dataset (STL format)
+- **Total Models:** 1000 STL files
+- **Point Cloud Density:** 20,000 points per model
+- **Voxel Resolution:** 64×64×64 (binary voxelization)
+- **Train/Test Split:** 80% training (800 models) / 20% testing (200 models)
+
+---
+
+## Project Structure
+
+```
+CAD-DR/
+├── app.py                 # Streamlit GUI application
+├── train.py               # Training script
+├── config.py              # Configuration parameters
+├── requirements.txt       # Python dependencies
+├── README.md
+│
+├── model/
+│   └── autoencoder.py     # PyTorch Autoencoder model definition
+│
+├── utils/
+│   ├── conversion_utils.py    # STL↔PLY↔Voxel conversion utilities
+│   └── visualization.py       # 3D visualization functions
+│
+└── data/
+    ├── abc-dataset-stl/       # Input: Original STL files
+    ├── abc-dataset-ply/       # Intermediate: Point clouds in PLY format
+    ├── sample-stl/            # Sample STL files for testing
+    ├── checkpoints/           # Training checkpoints
+    └── saved-models/          # Pre-trained models
+        ├── autoencoder.pt     # Full autoencoder model
+        └── encoder.pt         # Encoder-only model
+```
 
 ---
 
@@ -84,23 +122,97 @@ conda activate cad-dr
 pip install -r requirements.txt
 ```
 
-### 3. Training
+### 3. Verify Installation
 
-This repository includes saved models - both the autoencoder in its entirety as well as the encoder separately, which is enough for running the Streamlit application. However, you can also train the model from scratch on data of your choice.
+The repository includes pre-trained PyTorch models (`autoencoder.pt` and `encoder.pt`), which are sufficient for running the Streamlit application without requiring training.
 
-You would have to manually download the ABC dataset from https://archive.nyu.edu/handle/2451/43778 in case you wish to replicate the training process followed by me. The dataset is available as .obj, .stl, .step formats and so on. In our case, we require the .stl format.
-Extract the downloaded 7z archive, and move 1000 files - the STL files itself - to data/abc-dataset-stl folder. Then run:
+---
+
+## Usage
+
+### Running the Streamlit Application
+
+To launch the interactive GUI:
+
+```bash
+streamlit run app.py
+```
+
+**Features:**
+- **STL Upload:** Upload and visualize 3D CAD models in STL format with interactive 3D rendering
+- **Voxel Visualization:** See the voxelized representation of your models (64³ resolution)
+- **Autoencoding:** Run the model to compress and reconstruct 3D shapes
+- **Latent Space Encoding:** Extract low-dimensional (16×16×16×16) representations of 3D models
+- **Real-time Visualization:** Plotly-based interactive 3D plots for exploration
+
+### Training the Autoencoder
+
+To train the model from scratch on a custom dataset:
+
+#### Step 1: Prepare the Dataset
+
+1. Download the ABC Dataset from https://archive.nyu.edu/handle/2451/43778
+2. Extract the 7z archive and select STL files
+3. Copy 1000 STL files to `data/abc-dataset-stl/`
+
+#### Step 2: Run Training
 
 ```bash
 python train.py
 ```
 
-This would generate the .keras saved models in data/saved-models
+**Training Pipeline:**
+The script automatically handles all preprocessing stages:
 
-### 4. Streamlit application
+1. **STL → PLY Conversion:** Converts STL files to point cloud format (20,000 points per model)
+   - Samples uniform points from triangle meshes
+   - Skips if PLY files already exist
+   
+2. **PLY → Voxel Conversion:** Voxelizes point clouds to 64³ binary grids
+   
+3. **Data Splitting:** Automatically splits into 80% training / 20% testing
+   
+4. **Model Training:** 
+   - Trains with progress bars and real-time loss/accuracy metrics
+   - Implements early stopping with checkpoint saving
+   - Displays detailed epoch-by-epoch statistics
+   
+5. **Model Saving:** Saves trained model to `data/saved-models/autoencoder.pt`
 
-To run the Streamlit application, simply run the following command:
+**Output:**
+- Trained autoencoder weights
+- Training logs and metrics
+- Checkpoint files for resuming training
 
-```bash
-streamlit run app.py
-```
+---
+
+## Technical Details
+
+### System Requirements
+
+- **Tested On:** Ubuntu 26.04 (originally developed on Ubuntu 22.04)
+- **Hardware (Development):** AMD Ryzen 7 4800H (8 cores), 16GB RAM, Nvidia GTX1660Ti (6GB VRAM)
+- **Training Time:** ~20 minutes for 1000 samples
+- **Framework:** PyTorch 2.x compatible
+
+### Device Support
+
+- **GPU:** Automatically uses CUDA if available for faster training and inference
+- **CPU:** Falls back to CPU if CUDA is not available
+
+---
+
+## Performance
+
+- **Compression Ratio:** 98% reduction (25MB → 300KB)
+- **Latent Space Size:** 16×16×16×16 (65,536 values)
+- **Training Time:** ~15 minutes on GTX1660Ti
+- **Binary Accuracy:** Tracked during training with early stopping mechanism
+
+---
+
+## License
+
+This project is open source and available under the MIT License.
+
+For questions, issues, or contributions, please feel free to open an issue or submit a pull request.

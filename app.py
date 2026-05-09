@@ -1,15 +1,19 @@
 import streamlit as st
 import numpy as np
+import torch
 import open3d as o3d
 import plotly.graph_objects as go
-from keras.models import load_model
 from config import POINT_CLOUD_DENSITY, VOXEL_DIM
+from model.autoencoder import Autoencoder
 from utils.conversion_utils import ConversionUtils
 from utils.visualization import Visualization
-import os
 
-autoencoder = load_model("data/saved-models/autoencoder.keras")
-encoder = load_model("data/saved-models/encoder.keras")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model = Autoencoder().to(device)
+model.load_state_dict(torch.load("data/saved-models/autoencoder.pt", map_location=device))
+model.eval()
 
 st.title("CAD-DR")
 st.subheader(
@@ -42,16 +46,18 @@ if stl_file:
 
     if st.button("Run Autoencoder and Encoder"):
         with st.spinner('Running Autoencoder...'):
-            binvox_array_reshaped = binvox_array.reshape(1, 64, 64, 64, 1)
+            binvox_tensor = torch.FloatTensor(
+                binvox_array).unsqueeze(0).unsqueeze(0).to(device)
             progress_bar = st.progress(0)
 
-            for i in range(1, 101):
-                if i % 20 == 0:
-                    progress_bar.progress(i / 100)
-                reconstructed_data = autoencoder.predict(binvox_array_reshaped)
+            with torch.no_grad():
+                for i in range(1, 101):
+                    if i % 20 == 0:
+                        progress_bar.progress(i / 100)
+                    reconstructed_data = model(binvox_tensor)
 
             progress_bar.empty()
-            reconstructed_sample = reconstructed_data[0].reshape(64, 64, 64)
+            reconstructed_sample = reconstructed_data.squeeze().cpu().numpy()
             threshold = 0.35
             reconstructed_sample = (
                 reconstructed_sample > threshold).astype(int)
@@ -65,11 +71,13 @@ if stl_file:
 
         with st.spinner("Running Encoder..."):
             progress_bar = st.progress(0)
-            for i in range(1, 101):
-                if i % 20 == 0:
-                    progress_bar.progress(i / 100)
-                latent_representation = encoder.predict(binvox_array_reshaped)
+            with torch.no_grad():
+                for i in range(1, 101):
+                    if i % 20 == 0:
+                        progress_bar.progress(i / 100)
+                    latent_representation = model.encode(binvox_tensor)
             progress_bar.empty()
+            latent_representation = latent_representation.cpu().numpy()
 
         st.subheader("Latent Space")
         st.write("Visualization - 16 channels of 16x16x16 data")

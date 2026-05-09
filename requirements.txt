@@ -1,8 +1,8 @@
+torch
 numpy
 pandas
 pyntcloud
 open3d
 tqdm
-tensorflow[and-cuda]
 matplotlib
 streamlit

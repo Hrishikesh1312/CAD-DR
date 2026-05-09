@@ -1,22 +1,37 @@
-from keras.models import Model
-from keras.layers import Input, Conv3D, UpSampling3D, AveragePooling3D
-from config import INPUT_SHAPE
+import torch
+import torch.nn as nn
 
-def build_autoencoder():
-    input_data = Input(shape=INPUT_SHAPE)
+class Autoencoder(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    x = Conv3D(32, (3, 3, 3), activation='selu', padding='same')(input_data)
-    x = AveragePooling3D((2, 2, 2), padding='same')(x)
-    x = Conv3D(16, (3, 3, 3), activation='selu', padding='same')(x)
-    encoded = AveragePooling3D((2, 2, 2), padding='same')(x)
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Conv3d(1, 32, kernel_size=3, padding=1),
+            nn.SELU(),
+            nn.AvgPool3d(kernel_size=2),
+            nn.Conv3d(32, 16, kernel_size=3, padding=1),
+            nn.SELU(),
+            nn.AvgPool3d(kernel_size=2),
+        )
 
-    x = Conv3D(16, (3, 3, 3), activation='selu', padding='same')(encoded)
-    x = UpSampling3D((2, 2, 2))(x)
-    x = Conv3D(32, (3, 3, 3), activation='selu', padding='same')(x)
-    x = UpSampling3D((2, 2, 2))(x)
-    decoded = Conv3D(1, (3, 3, 3), activation='sigmoid', padding='same')(x)
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Conv3d(16, 16, kernel_size=3, padding=1),
+            nn.SELU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),
+            nn.Conv3d(16, 32, kernel_size=3, padding=1),
+            nn.SELU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),
+            nn.Conv3d(32, 1, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+        )
 
-    autoencoder = Model(input_data, decoded)
-    encoder = Model(input_data, encoded)
+    def encode(self, x):
+        return self.encoder(x)
 
-    return autoencoder, encoder
+    def decode(self, z):
+        return self.decoder(z)
+
+    def forward(self, x):
+        return self.decode(self.encode(x))
