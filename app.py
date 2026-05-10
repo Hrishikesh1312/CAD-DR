@@ -1,4 +1,5 @@
 import os
+import io
 import time
 import tempfile
 import streamlit as st
@@ -241,6 +242,14 @@ if uploaded_file:
     with st.spinner("Loading STL mesh..."):
 
         mesh = o3d.io.read_triangle_mesh(temp_file_path)
+
+        # Decimate mesh for visualization only — does not affect voxelization
+        MAX_TRIANGLES = 50000
+        if len(mesh.triangles) > MAX_TRIANGLES:
+            mesh = mesh.simplify_quadric_decimation(
+                target_number_of_triangles=MAX_TRIANGLES
+            )
+            st.info(f"Mesh decimated to {MAX_TRIANGLES} triangles for visualization.")
 
         vertices = np.asarray(mesh.vertices)
         triangles = np.asarray(mesh.triangles)
@@ -489,50 +498,28 @@ if uploaded_file:
 
         if save_outputs:
 
-            os.makedirs("outputs", exist_ok=True)
+            latent_buffer = io.BytesIO()
+            reconstruction_buffer = io.BytesIO()
 
-            latent_space_path = os.path.join(
-                "outputs",
-                "latent_space.npy"
+            np.save(latent_buffer, latent_representation)
+            np.save(reconstruction_buffer, reconstructed_sample)
+
+            latent_buffer.seek(0)
+            reconstruction_buffer.seek(0)
+
+            st.download_button(
+                label="Download Latent Representation",
+                data=latent_buffer,
+                file_name="latent_space.npy",
+                mime="application/octet-stream"
             )
 
-            reconstruction_path = os.path.join(
-                "outputs",
-                "reconstructed_voxel.npy"
+            st.download_button(
+                label="Download Reconstructed Voxel Grid",
+                data=reconstruction_buffer,
+                file_name="reconstructed_voxel.npy",
+                mime="application/octet-stream"
             )
-
-            np.save(
-                latent_space_path,
-                latent_representation
-            )
-
-            np.save(
-                reconstruction_path,
-                reconstructed_sample
-            )
-
-            st.success(
-                "Latent representation and reconstructed "
-                "voxel grid saved successfully."
-            )
-
-            with open(latent_space_path, "rb") as f:
-                st.download_button(
-                    label="Download Latent Representation",
-                    data=f,
-                    file_name="latent_space.npy",
-                    mime="application/octet-stream"
-                )
-
-            with open(reconstruction_path, "rb") as f:
-                st.download_button(
-                    label="Download Reconstructed Voxel Grid",
-                    data=f,
-                    file_name="reconstructed_voxel.npy",
-                    mime="application/octet-stream"
-                )
-
-        st.session_state.inference_complete = True
 
     # -----------------------------------------------------
     # Cleanup
