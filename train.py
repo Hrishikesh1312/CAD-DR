@@ -63,7 +63,17 @@ test_loader = DataLoader(
 )
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+compute_device = ""
+
+if torch.cuda.is_available():
+    compute_device = "cuda"
+elif torch.backends.mps.is_available():
+    compute_device = "mps"
+else:
+    compute_device = "cpu"
+
+device = torch.device(compute_device)
+
 model = ConvolutionalAutoencoder().to(device)
 optimizer = torch.optim.Adam(model.parameters())
 criterion = nn.BCELoss()

@@ -62,7 +62,7 @@ The developed pipeline can reduce an STL of 25MB size to less than 300kB - a sta
 - **Batch Size:** 10
 - **Epochs:** 50 (with early stopping)
 - **Early Stopping:** Patience=5, Min Delta=0.0001
-- **Device:** Automatic GPU acceleration if CUDA is available
+- **Device:** Automatic GPU acceleration if  (on systems with NVIDIA GPUs) or MPS (on Apple Silicon systems)
 
 ---
 
@@ -197,8 +197,8 @@ The script automatically handles all preprocessing stages:
 
 ### Device Support
 
-- **GPU:** Automatically uses CUDA if available for faster training and inference
-- **CPU:** Falls back to CPU if CUDA is not available
+- **GPU:** Automatically GPU acceleration on systems with an NVIDIA GPU or Apple Silicon
+- **CPU:** Falls back to CPU if either is not available
 
 ---
 
