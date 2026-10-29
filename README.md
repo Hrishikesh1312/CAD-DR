@@ -1,257 +1,216 @@
 # CAD-DR
-**Deep Convolutional Autoencoder for Dimensionality Reduction of 3D CAD Models**
 
-CAD-DR is a deep learning-based system for dimensionality reduction of 3D CAD models using a 3D convolutional autoencoder. The system supports full STL to voxel transformation, encoding, reconstruction, and interactive visualization using a Streamlit-based GUI.
+**Deep convolutional autoencoder for dimensionality reduction and reconstruction of 3D CAD models**
 
----
+CAD-DR converts an STL mesh into a `64 × 64 × 64` binary voxel grid, compresses it with a 3D convolutional encoder, and reconstructs it with a decoder. Its Streamlit workspace provides interactive previews, reconstruction diagnostics, threshold experiments, and exports for downstream analysis.
 
-## Table of Contents
+## Features
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Dataset](#dataset)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Technical Details](#technical-details)
-- [Performance](#performance)
-- [Future Work](#future-work)
-- [License](#license)
+- STL validation, point-cloud sampling, and voxelization
+- Cached preprocessing and single-pass encoder/decoder inference
+- NVIDIA CUDA, Apple Metal (MPS), and CPU support
+- Professional light and charcoal-dark themes; dark mode is the default
+- Interactive original, voxel, reconstruction, latent-space, overlay, and cross-section views
+- Live reconstruction-threshold adjustment without rerunning the model
+- Voxel accuracy, IoU, precision, recall, F1, and execution timing
+- Threshold sweep across 101 values with downloadable results
+- Downloads for reconstructed STL, voxel arrays, latent arrays, and metadata archives
+- Compression statistics based on actual generated files
+- Reproducible command-line comparison of compatible model checkpoints
+- Clear handling of empty, malformed, or degenerate meshes and model failures
 
----
+## How it works
 
-## Overview
+```text
+STL mesh
+   ↓ validate and uniformly sample points
+64³ binary voxel grid
+   ↓ encoder
+16 × 16 × 16 × 16 latent tensor
+   ↓ decoder
+64³ occupancy probabilities
+   ↓ reconstruction threshold
+binary reconstructed shape
+```
 
-The goal of CAD-DR is to compress 3D models into low-dimensional latent representations while preserving key geometric features. This allows for efficient storage, retrieval, and downstream tasks like shape classification and reconstruction.
+The encoder learns local 3D features and reduces the spatial dimensions twice. The decoder expands those latent features back to the original voxel resolution. Its sigmoid output assigns an occupancy probability between 0 and 1 to every voxel.
 
-**Key Features:**
-- 3D STL → Point Cloud → Voxel conversion pipeline
-- Fully convolutional encoder-decoder architecture with SELU activations
-- Streamlit GUI with real-time visualization (STL, voxel, latent space)
-- Latent space export and reconstruction preview
-- PyTorch-based implementation with GPU acceleration support
-- Pre-trained models included for immediate use
-
-**Compression Performance:**
-The developed pipeline can reduce an STL of 25MB size to less than 300kB - a staggering 98% reduction in storage size while preserving geometric details.
-
----
+The reconstruction threshold converts those probabilities into a binary shape. Lower values usually create denser reconstructions; higher values create sparser ones. Changing the threshold in the application updates the preview, metrics, and downloads without running inference again.
 
 ## Architecture
 
-### Autoencoder (PyTorch Implementation)
+Input shape: `1 × 64 × 64 × 64`
 
-**Input Format:** Binary voxel grids (1×64×64×64)
+### Encoder
 
-**Encoder:**
-- Conv3D(1→32, kernel_size=3, padding=1) → SELU → AvgPool3D(2)
-- Conv3D(32→16, kernel_size=3, padding=1) → SELU → AvgPool3D(2)
-- **Bottleneck (Latent Space):** 16×16×16×16
+1. `Conv3D(1 → 32, kernel=3, padding=1)` → SELU → `AvgPool3D(2)`
+2. `Conv3D(32 → 16, kernel=3, padding=1)` → SELU → `AvgPool3D(2)`
+3. Latent tensor: `16 × 16 × 16 × 16` (65,536 values)
 
-**Decoder:**
-- Conv3D(16→16, kernel_size=3, padding=1) → SELU → Upsample(2, mode='nearest')
-- Conv3D(16→32, kernel_size=3, padding=1) → SELU → Upsample(2, mode='nearest')
-- Conv3D(32→1, kernel_size=3, padding=1) → Sigmoid
+### Decoder
 
-### Training Configuration
-
-- **Framework:** PyTorch (Torch 2.x compatible)
-- **Optimizer:** Adam
-- **Loss Function:** Binary Cross-Entropy (BCELoss)
-- **Metrics:** Binary Accuracy
-- **Batch Size:** 10
-- **Epochs:** 50 (with early stopping)
-- **Early Stopping:** Patience=5, Min Delta=0.0001
-- **Device:** Automatic GPU acceleration if  (on systems with NVIDIA GPUs) or MPS (on Apple Silicon systems)
-
----
-
-## Dataset
-
-- **Source:** ABC Dataset (STL format)
-- **Total Models:** 1000 STL files
-- **Point Cloud Density:** 20,000 points per model
-- **Voxel Resolution:** 64×64×64 (binary voxelization)
-- **Train/Test Split:** 80% training (800 models) / 20% testing (200 models)
-
----
-
-## Project Structure
-
-```
-CAD-DR/
-├── app.py                 # Streamlit GUI application
-├── train.py               # Training script
-├── config.py              # Configuration parameters
-├── requirements.txt       # Python dependencies
-├── README.md
-│
-├── model/
-│   └── autoencoder.py     # PyTorch Autoencoder model definition
-│
-├── utils/
-│   ├── conversion_utils.py    # STL↔PLY↔Voxel conversion utilities
-│   └── visualization.py       # 3D visualization functions
-│
-└── data/
-    ├── abc-dataset-stl/       # Input: Original STL files
-    ├── abc-dataset-ply/       # Intermediate: Point clouds in PLY format
-    ├── sample-stl/            # Sample STL files for testing
-    ├── checkpoints/           # Training checkpoints
-    └── saved-models/          # Pre-trained models
-        ├── autoencoder.pt     # Full autoencoder model
-        └── encoder.pt         # Encoder-only model
-```
-
----
+1. `Conv3D(16 → 16, kernel=3, padding=1)` → SELU → nearest-neighbor upsampling
+2. `Conv3D(16 → 32, kernel=3, padding=1)` → SELU → nearest-neighbor upsampling
+3. `Conv3D(32 → 1, kernel=3, padding=1)` → sigmoid
 
 ## Installation
 
-### 1. Clone the repository
+Python 3.11 is recommended.
 
 ```bash
 git clone https://github.com/Hrishikesh1312/CAD-DR.git
-cd CAD-DR/
-```
+cd CAD-DR
 
-### 2. Environment setup
-
-```bash
 conda create -n cad-dr python=3.11
 conda activate cad-dr
 pip install -r requirements.txt
 ```
 
-### 3. Verify Installation
+The repository includes pretrained autoencoder and encoder weights under `data/saved-models/`, so the application can run without retraining.
 
-The repository includes pre-trained PyTorch models (`autoencoder.pt` and `encoder.pt`), which are sufficient for running the Streamlit application without requiring training.
-
----
-
-## Usage
-
-### Running the Streamlit Application
-
-To launch the interactive GUI:
+## Run the application
 
 ```bash
 streamlit run app.py
 ```
 
-**Features:**
-- **STL Upload:** Upload and visualize 3D CAD models in STL format with interactive 3D rendering
-- **Voxel Visualization:** See the voxelized representation of your models (64³ resolution)
-- **Autoencoding:** Run the model to compress and reconstruct 3D shapes
-- **Latent Space Encoding:** Extract low-dimensional (16×16×16×16) representations of 3D models
-- **Real-time Visualization:** Plotly-based interactive 3D plots for exploration
+The Streamlit file watcher is disabled to avoid PyTorch module-inspection errors. Restart the Streamlit process after changing source files.
 
-### Training the Autoencoder
+### Typical workflow
 
-To train the model from scratch on a custom dataset:
+1. Upload a triangulated STL mesh.
+2. Choose point-cloud density, reconstruction threshold, and theme in the sidebar.
+3. Inspect the original surface and voxelized input.
+4. Select **Encode & reconstruct**. The encoder creates the latent representation, then the decoder produces reconstruction probabilities.
+5. Explore the result tabs:
+   - **Shape comparison:** input and reconstructed shapes, a shared/missing/extra overlay, and cross-sections.
+   - **Quality & timing:** voxel metrics plus encoder, decoder, and total inference time.
+   - **Experiments:** metrics over 101 thresholds and a downloadable CSV.
+   - **Latent space:** interactive channel visualization.
+   - **Downloads:** reconstruction and latent exports with measured file sizes.
 
-#### Step 1: Prepare the Dataset
+Inference results persist across ordinary UI reruns. Changing the uploaded file, point-cloud density, or voxel dimension invalidates stale results.
 
-1. Download the ABC Dataset from https://archive.nyu.edu/handle/2451/43778
-2. Extract the 7z archive and select STL files
-3. Copy 1000 STL files to `data/abc-dataset-stl/`
+## Exports
 
-#### Step 2: Run Training
+The Downloads tab provides:
+
+- Latent tensor as `.npy`
+- Reconstructed binary voxel grid as `.npy`
+- Compressed `.npz` latent archive containing grid origin and spacing, source/model hashes, threshold, point density, voxel dimension, and format metadata
+- Reconstructed binary STL generated with marching cubes
+
+The STL export uses the voxel grid's recorded origin and spacing, retaining the source coordinate system and scale within the limits of sampling and voxel resolution. STL files do not declare physical units, so interpret the export using the same units as the source model.
+
+Compression figures compare the generated latent file with the uploaded STL and show a packed binary voxel baseline. They exclude decoder weights, which are required to reconstruct a latent representation. Importing a latent archive back into the application is not currently supported.
+
+## Reconstruction experiments
+
+The Experiments tab evaluates the current model output at thresholds from `0.00` to `1.00` in increments of `0.01`. It plots IoU, F1, precision, and recall and reports the threshold with the highest IoU.
+
+This is a per-model-input diagnostic. A threshold that performs well for one uploaded shape is not evidence that it generalizes to unseen data.
+
+### Compare checkpoints
+
+Use `evaluate.py` to compare checkpoints that implement the current `ConvolutionalAutoencoder` architecture:
+
+```bash
+python evaluate.py \
+  --models data/saved-models/autoencoder.pt \
+  --inputs data/sample-stl/chair.stl data/sample-stl/car.stl \
+  --output-dir data/experiments/baseline \
+  --device cpu
+```
+
+Pass multiple paths after `--models` to compare training runs. The command samples every input once so each checkpoint receives identical voxel data, then writes:
+
+- `per_input.csv`: every input, model, threshold, BCE, and reconstruction metric
+- `threshold_summary.csv`: cohort averages for every model and threshold
+- `best_thresholds.csv`: the highest-mean-IoU threshold for each checkpoint
+- `manifest.json`: paths, hashes, seeds, configuration, and library versions
+
+Use a validation cohort to select a threshold and a separate untouched test cohort for final reporting. The bundled sample STL files are useful for smoke tests but should not be assumed to be held out from training. Sampling is repeatable within the recorded environment, though results may vary across Open3D versions or compute devices. The output directory must not already exist.
+
+Additional options:
+
+```bash
+python evaluate.py --help
+```
+
+## Training
+
+The training configuration defaults to:
+
+- ABC Dataset STL inputs
+- 20,000 sampled points per mesh
+- `64³` voxel grids
+- 80/20 train-validation split
+- Adam optimizer and binary cross-entropy loss
+- Batch size 10
+- Up to 50 epochs
+- Early stopping with patience 5 and minimum delta `0.0001`
+
+Place training STL files in `data/abc-dataset-stl/`, then run:
 
 ```bash
 python train.py
 ```
 
-**Training Pipeline:**
-The script automatically handles all preprocessing stages:
+The script converts STL files to PLY point clouds, voxelizes the dataset, trains the autoencoder, saves checkpoints, and writes the final weights to `data/saved-models/autoencoder.pt` and `data/saved-models/encoder.pt`.
 
-1. **STL → PLY Conversion:** Converts STL files to point cloud format (20,000 points per model)
-   - Samples uniform points from triangle meshes
-   - Skips if PLY files already exist
-   
-2. **PLY → Voxel Conversion:** Voxelizes point clouds to 64³ binary grids
-   
-3. **Data Splitting:** Automatically splits into 80% training / 20% testing
-   
-4. **Model Training:** 
-   - Trains with progress bars and real-time loss/accuracy metrics
-   - Implements early stopping with checkpoint saving
-   - Displays detailed epoch-by-epoch statistics
-   
-5. **Model Saving:** Saves trained model to `data/saved-models/autoencoder.pt`
+The training script uses the first 80% of the generated array for training and the remaining 20% for validation. Arrange or shuffle source files deliberately if you require a randomized or stratified split.
 
-**Output:**
-- Trained autoencoder weights
-- Training logs and metrics
-- Checkpoint files for resuming training
+## Validation metrics
 
----
+- **Voxel accuracy:** fraction of all occupied and empty voxels classified correctly. Empty space can dominate this score.
+- **IoU:** intersection of occupied input and reconstructed voxels divided by their union.
+- **Precision:** fraction of reconstructed occupied voxels also occupied in the input.
+- **Recall:** fraction of occupied input voxels recovered by the reconstruction.
+- **F1:** harmonic mean of precision and recall.
 
-## Technical Details
+IoU and F1 are generally more informative than voxel accuracy for sparse voxel grids.
 
-### System Requirements
+## Project structure
 
-- **Tested On:** Ubuntu 26.04 (originally developed on Ubuntu 22.04)
-- **Hardware (Development):** AMD Ryzen 7 4800H (8 cores), 16GB RAM, Nvidia GTX1660Ti (6GB VRAM)
-- **Training Time:** ~20 minutes for 1000 samples
-- **Framework:** PyTorch 2.x compatible
-
-### Device Support
-
-- **GPU:** Automatically GPU acceleration on systems with an NVIDIA GPU or Apple Silicon
-- **CPU:** Falls back to CPU if either is not available
-
----
-
-## Performance
-
-- **Compression Ratio:** 98% reduction (25MB → 300KB)
-- **Latent Space Size:** 16×16×16×16 (65,536 values)
-- **Training Time:** ~15 minutes on GTX1660Ti
-- **Binary Accuracy:** Tracked during training with early stopping mechanism
-
----
-
-## License
-
-This project is open source and available under the MIT License.
-
-For questions, issues, or contributions, please feel free to open an issue or submit a pull request.
-
-## Reconstruction inspection and exports
-
-The results workspace includes a **Shape comparison** tab with a colored overlay
-(shared, missing, and extra occupied cells) and selectable cross-sections. The
-**Experiments** tab evaluates 101 thresholds against the current input and exports
-IoU, F1, precision, and recall as CSV. Its suggested threshold applies to that input;
-it is not an estimate of generalization quality.
-
-The **Downloads** tab offers binary reconstructed STL, NumPy voxel/latent arrays,
-and a compressed latent archive with grid origin, spacing, source hash, and model
-hash. STL geometry uses the voxelizer's exact coordinate transform and retains the
-source coordinate system and scale, subject to sampling and voxel resolution.
-STL has no declared physical units. The archive carries metadata for downstream
-use; importing it into the application is not yet supported. Compression statistics
-compare actual exported array sizes with the source STL and a packed binary voxel
-baseline; decoder weights are excluded.
-
-### Compare model checkpoints
-
-Use compatible checkpoints (the current `ConvolutionalAutoencoder` architecture) on
-a validation cohort to compare model quality without modifying deployed weights:
-
-```bash
-python evaluate.py --models data/saved-models/autoencoder.pt \
-  --inputs data/sample-stl/chair.stl data/sample-stl/car.stl \
-  --output-dir data/experiments/baseline --device cpu
+```text
+CAD-DR/
+├── app.py                              # Streamlit application
+├── train.py                            # Training pipeline
+├── evaluate.py                         # Checkpoint comparison CLI
+├── config.py                           # Model and preprocessing defaults
+├── requirements.txt
+├── model/
+│   └── convolutional_autoencoder.py    # Encoder-decoder architecture
+├── utils/
+│   ├── conversion_utils.py             # Point-cloud and voxel conversion
+│   ├── experiments.py                  # Threshold sweep metrics
+│   ├── exports.py                      # STL, NumPy, and metadata exports
+│   ├── theme.py                        # Light/dark theme palettes
+│   ├── validation.py                   # Mesh and voxel validation
+│   └── visualization.py                # Plotly and 3D comparison views
+├── tests/
+│   ├── test_exports_experiments.py
+│   └── test_validation.py
+└── data/
+    ├── sample-stl/                     # Example meshes
+    ├── checkpoints/                    # Training checkpoints
+    └── saved-models/                   # Pretrained weights
 ```
 
-Supply multiple checkpoint paths after `--models` to compare training experiments.
-The example inputs are a smoke-test cohort; do not assume they are held out from
-training. Use a separate validation set to choose thresholds and an untouched test
-set to report final quality. Every checkpoint sees the same sampled voxel inputs.
-The command records input/model hashes, sampling seeds, per-input BCE and threshold
-metrics, cohort averages, and the threshold with highest mean IoU per checkpoint.
-Equal scores select the lowest tested threshold. Output directories must be new.
-Sampling seeds support repeatability within the same Open3D environment; results
-may vary across library versions or compute devices. Larger architecture changes
-require a matching model loader and retraining.
+## Tests
+
+Run the unit tests with the project environment:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The tests cover mesh and voxel validation, coordinate-preserving STL generation, latent archive round-trips, and threshold experiment behavior.
+
+## Notes and limitations
+
+- The reconstruction is voxel-based and therefore approximate. Thin walls, small holes, and fine features may be lost at `64³` resolution.
+- Point-cloud density affects voxel coverage and preprocessing time.
+- The latent tensor is a learned feature representation, not a directly editable CAD model.
+- Checkpoint comparison currently supports weights compatible with the included architecture.
+- Report measured compression and quality for the actual dataset and export format rather than assuming a universal compression ratio.
