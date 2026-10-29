@@ -132,7 +132,8 @@ def load_model():
     model.load_state_dict(
         torch.load(
             "data/saved-models/autoencoder.pt",
-            map_location=device
+            map_location=device,
+            weights_only=True
         )
     )
     model.eval()

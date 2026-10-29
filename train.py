@@ -146,7 +146,7 @@ for epoch in range(EPOCHS):
             print(f"Early stopping at epoch {epoch+1}")
             break
 
-model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+model.load_state_dict(torch.load(checkpoint_path, map_location=device, weights_only=True))
 
 
 model.eval()

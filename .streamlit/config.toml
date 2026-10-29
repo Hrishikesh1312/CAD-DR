@@ -1,0 +1,4 @@
+[server]
+# Avoid module inspection errors from PyTorch custom class registrations.
+# Source edits require a manual restart while file watching is disabled.
+fileWatcherType = "none"
