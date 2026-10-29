@@ -29,7 +29,7 @@ class ConversionUtils:
         return voxelgrid.get_feature_vector(mode="binary")
     
     @staticmethod
-    def convert_pointcloud_to_binvox(point_cloud, dim=64):
+    def convert_pointcloud_to_binvox(point_cloud, dim=64, return_transform=False):
         import pandas as pd
         from pyntcloud import PyntCloud
 
@@ -38,5 +38,11 @@ class ConversionUtils:
         cloud = PyntCloud(df)
         voxelgrid_id = cloud.add_structure("voxelgrid", n_x=dim, n_y=dim, n_z=dim)
         voxelgrid = cloud.structures[voxelgrid_id]
-        return voxelgrid.get_feature_vector(mode="binary")
+        voxels = voxelgrid.get_feature_vector(mode="binary")
+        if return_transform:
+            # Grid indices identify cell centers, not cell edges.
+            spacing = np.asarray(voxelgrid.shape, dtype=np.float64)
+            origin = np.asarray(voxelgrid.xyzmin, dtype=np.float64) + spacing / 2
+            return voxels, {"origin": origin, "spacing": spacing}
+        return voxels
 

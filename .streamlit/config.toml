@@ -2,3 +2,11 @@
 # Avoid module inspection errors from PyTorch custom class registrations.
 # Source edits require a manual restart while file watching is disabled.
 fileWatcherType = "none"
+
+[theme]
+base = "dark"
+primaryColor = "#79B8FF"
+backgroundColor = "#1C1C1E"
+secondaryBackgroundColor = "#222224"
+textColor = "#EEEEF0"
+font = "sans serif"

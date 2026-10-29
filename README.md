@@ -216,3 +216,42 @@ The script automatically handles all preprocessing stages:
 This project is open source and available under the MIT License.
 
 For questions, issues, or contributions, please feel free to open an issue or submit a pull request.
+
+## Reconstruction inspection and exports
+
+The results workspace includes a **Shape comparison** tab with a colored overlay
+(shared, missing, and extra occupied cells) and selectable cross-sections. The
+**Experiments** tab evaluates 101 thresholds against the current input and exports
+IoU, F1, precision, and recall as CSV. Its suggested threshold applies to that input;
+it is not an estimate of generalization quality.
+
+The **Downloads** tab offers binary reconstructed STL, NumPy voxel/latent arrays,
+and a compressed latent archive with grid origin, spacing, source hash, and model
+hash. STL geometry uses the voxelizer's exact coordinate transform and retains the
+source coordinate system and scale, subject to sampling and voxel resolution.
+STL has no declared physical units. The archive carries metadata for downstream
+use; importing it into the application is not yet supported. Compression statistics
+compare actual exported array sizes with the source STL and a packed binary voxel
+baseline; decoder weights are excluded.
+
+### Compare model checkpoints
+
+Use compatible checkpoints (the current `ConvolutionalAutoencoder` architecture) on
+a validation cohort to compare model quality without modifying deployed weights:
+
+```bash
+python evaluate.py --models data/saved-models/autoencoder.pt \
+  --inputs data/sample-stl/chair.stl data/sample-stl/car.stl \
+  --output-dir data/experiments/baseline --device cpu
+```
+
+Supply multiple checkpoint paths after `--models` to compare training experiments.
+The example inputs are a smoke-test cohort; do not assume they are held out from
+training. Use a separate validation set to choose thresholds and an untouched test
+set to report final quality. Every checkpoint sees the same sampled voxel inputs.
+The command records input/model hashes, sampling seeds, per-input BCE and threshold
+metrics, cohort averages, and the threshold with highest mean IoU per checkpoint.
+Equal scores select the lowest tested threshold. Output directories must be new.
+Sampling seeds support repeatability within the same Open3D environment; results
+may vary across library versions or compute devices. Larger architecture changes
+require a matching model loader and retraining.
