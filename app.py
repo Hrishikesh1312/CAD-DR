@@ -1,4 +1,8 @@
 import os
+
+# Enable CPU fallback for unsupported MPS operations before importing PyTorch.
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
 import io
 import time
 import tempfile
