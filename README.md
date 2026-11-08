@@ -139,7 +139,33 @@ python evaluate.py --help
 
 ## Training
 
-The training configuration defaults to:
+Training is normally performed with triangulated models from the ABC Dataset. The
+training script does not download the dataset: prepare the models as individual
+STL files and place them directly in the input directory (subdirectories are not
+scanned).
+
+### Prepare the ABC Dataset
+
+1. Download the desired ABC Dataset chunks (https://archive.nyu.edu/handle/2451/43778).
+2. Extract the archive and convert the models to triangulated STL files if the
+   selected download is provided in another format. Usually, the website allows the download of the chunk in STL format.
+3. Copy the STL files into `data/abc-dataset-stl/`:
+
+   ```text
+   data/abc-dataset-stl/
+   ├── 00000001.stl
+   ├── 00000002.stl
+   └── ...
+   ```
+
+Use valid, non-empty triangle meshes. Start with a small subset to verify the
+pipeline before processing a large ABC release; point-cloud conversion and
+voxelization can take substantial time and storage.
+
+### Configure and run
+
+Install the dependencies described in [Installation](#installation), then review
+the training constants in `config.py`. The defaults are:
 
 - ABC Dataset STL inputs
 - 20,000 sampled points per mesh
@@ -150,15 +176,37 @@ The training configuration defaults to:
 - Up to 50 epochs
 - Early stopping with patience 5 and minimum delta `0.0001`
 
-Place training STL files in `data/abc-dataset-stl/`, then run:
+From the repository root, run:
 
 ```bash
 python train.py
 ```
 
-The script converts STL files to PLY point clouds, voxelizes the dataset, trains the autoencoder, saves checkpoints, and writes the final weights to `data/saved-models/autoencoder.pt` and `data/saved-models/encoder.pt`.
+The script automatically selects CUDA, Apple Metal (MPS), or CPU, in that order.
+It performs the following steps:
 
-The training script uses the first 80% of the generated array for training and the remaining 20% for validation. Arrange or shuffle source files deliberately if you require a randomized or stratified split.
+1. Samples each STL surface into a PLY point cloud under
+   `data/abc-dataset-ply/`.
+2. Converts the point clouds to binary voxel grids.
+3. Uses the first 80% of the resulting array for training and the remaining 20%
+   for validation.
+4. Trains the autoencoder and applies early stopping.
+5. Writes the best checkpoint to `data/checkpoints/checkpoint.pt` and the final
+   autoencoder and encoder weights to `data/saved-models/autoencoder.pt` and
+   `data/saved-models/encoder.pt`.
+
+The PLY directory acts as a preprocessing cache. If
+`data/abc-dataset-ply/` already contains files, STL-to-PLY conversion is skipped.
+When changing the STL collection or point-cloud density, first empty or move that
+directory so it can be regenerated.
+
+The split is based on file order rather than a randomized dataset split, although
+the training batches themselves are shuffled. Arrange the source files
+deliberately if you need a randomized or stratified split, and keep a separate,
+untouched test cohort for final evaluation.
+
+To change the batch size, epoch limit, voxel resolution, sampling density, or data
+paths, edit the corresponding values in `config.py` before starting training.
 
 ## Validation metrics
 
@@ -192,6 +240,8 @@ CAD-DR/
 │   ├── test_exports_experiments.py
 │   └── test_validation.py
 └── data/
+    ├── abc-dataset-stl/                # ABC training meshes (user supplied)
+    ├── abc-dataset-ply/                # Generated point-cloud cache
     ├── sample-stl/                     # Example meshes
     ├── checkpoints/                    # Training checkpoints
     └── saved-models/                   # Pretrained weights
