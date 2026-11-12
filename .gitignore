@@ -1,3 +1,4 @@
 data/abc-dataset-stl
 data/abc-dataset-ply
 __pycache__/
+.venv/
